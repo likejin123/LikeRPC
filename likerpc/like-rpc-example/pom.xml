@@ -10,15 +10,23 @@
 
 
     <dependencies>
-        <dependency>
-            <groupId>com.likejin.likerpcclient</groupId>
-            <artifactId>like-rpc-client</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
+        <!--单个通道串行化，先发一个，再发一个-->
+        <!--<dependency>-->
+            <!--<groupId>com.likejin.likerpcclient</groupId>-->
+            <!--<artifactId>like-rpc-client</artifactId>-->
+            <!--<version>1.0-SNAPSHOT</version>-->
+        <!--</dependency>-->
 
         <dependency>
             <groupId>com.likejin.likerpcserver</groupId>
             <artifactId>like-rpc-server</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <!--单个通道并行，维护请求和响应的一个requstId的map-->
+        <dependency>
+            <groupId>com.likejin.likerpc</groupId>
+            <artifactId>like-rpc-client-many</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>

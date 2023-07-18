@@ -37,8 +37,6 @@ public class NettyServer {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
         }
-
-
     }
 
     public void bind(ServerBootstrap serverBootstrap){
@@ -59,9 +57,5 @@ public class NettyServer {
         }catch (Exception e){
             e.printStackTrace();
         }
-
     }
-
-
-
 }

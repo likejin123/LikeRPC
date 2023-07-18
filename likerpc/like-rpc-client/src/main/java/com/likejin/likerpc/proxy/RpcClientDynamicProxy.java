@@ -3,7 +3,6 @@ package com.likejin.likerpc.proxy;
 import com.likejin.likerpc.RequestAndRepsonse.RpcRequest;
 import com.likejin.likerpc.RequestAndRepsonse.RpcResponse;
 import com.likejin.likerpc.client.NettyClient;
-import com.likejin.likerpc.client.NettyClientHandler;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -16,6 +15,9 @@ import java.util.UUID;
  * @Description
  */
 public class RpcClientDynamicProxy<T> implements InvocationHandler {
+
+    private int taskCount = 0;
+
     private Class<T> interfaceClazz;
 
     private String host;
@@ -23,15 +25,19 @@ public class RpcClientDynamicProxy<T> implements InvocationHandler {
     private Integer port;
 
     private String packageName;
+
+    private NettyClient nettyClient;
     public RpcClientDynamicProxy(Class<T> interfaceClazz, String host, Integer port,String packageName) {
         this.interfaceClazz = interfaceClazz;
         this.host = host;
         this.port = port;
         this.packageName = packageName;
+        nettyClient = new NettyClient(host,port);
     }
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        taskCount ++ ;
         RpcRequest request = new RpcRequest();
 
         //获取接口名称
@@ -53,21 +59,19 @@ public class RpcClientDynamicProxy<T> implements InvocationHandler {
         request.setParameterTypes(parameterTypes);
         request.setParameters(args);
         //开启Netty 客户端，直连
-        NettyClient nettyClient = new NettyClient(host, port);
-        //连接并发送请求数据
-        nettyClient.connect();
-        nettyClient.send(request);
 
-        //获取结果方案1
-//        RpcResponse result = NettyClientHandler.getResult();
-        //获取结果方案2
-        RpcResponse response = NettyClientHandler.getResponseByRequestId(id);
+        //连接并发送请求数据
+        RpcResponse response = nettyClient.send(request);
         if(response.getResult() != null){
-            System.out.println("consumer:....." +"请求success调用返回结果：" + response.getResult());
+            System.out.println("consumer:....." +"请求success" + "参数：" + request + "返回结果：" + response.getResult());
         }else{
             System.out.println("consumer:....." +"请求error调用返回结果：" + response.getError());
         }
-        nettyClient.destroy();
+        taskCount --;
+        if(taskCount == 0){
+            nettyClient.destroy();
+        }
+
         return response.getResult();
     }
 

@@ -1,4 +1,4 @@
-# 一.流程
+# 一.服务端
 
 ## 1.协议
 
@@ -13,19 +13,7 @@
 + 使用fastjson提供的对象转字节
 + 使用fastjson提供的字节转对象
 
-## 3.客户端
-
-```java
-//根据动态代理获获取对应的代理对象
-
-//接口 服务提供方主机 地址  要调用的对象在服务提供方中的包名
-HelloService helloService = new RpcClientDynamicProxy<>(HelloService.class, "127.0.0.1", 7000,"com.likejin.example.server").getProxy();
-
-//代理对象执行远程调用并且获取返回结果  
-helloService.hello("你好吗");
-```
-
-## 4.服务端
+## 3.服务端
 
 ```java
 //开启服务监听端口     
@@ -33,42 +21,32 @@ helloService.hello("你好吗");
 new NettyServer(7000).start();
 ```
 
-
-
-## 5.传输流程
-
-客户端 封装request对象 -> 客户端Encoder为bytes - >
-
-服务端 Decoder为request对象 -> 处理并返回response对象 ->服务端 Encoder为bytes ->
-
-客户端 Decoder为response对象 ->获取结果。。。。
-
-+ 其中核心代码
-
-```java
-客户端动态代理获取代理类，收发数据，获取结果
-客户端encoder编码为字节并且先发长度，再发字节
-客户端Handler维护map来映射本客户端每个请求对应的每个Response（自旋获取结果）
-服务端decoder先读int，再读字节，解码为Rquest
-服务端通过对应的包名获取包下所有类，通过接口名找到实现了该接口的类，执行对应方法，返回结果。
-```
+## 4.客户端
 
 
 
-# 二.问题
+# 二.核心技术
 
-## 1.解决问题1：如何确定消费者要调用的提供方的全类名
+## 1.服务端
 
-+ RpcRequest中加入对应的调用服务的包名
-+ 消费者 传入调用对应对象的 包名
-+ 服务方扫描对应的包下的所有类，找到实现消费者调用接口的实现类。
+通过接口名和包名反射找到对应实现类并执行
 
-## 2.解决问题2：动态代理中用netty获取的通道发送数据，如何接受返回结果呢？
+## 2.客户端
 
-### 1.解决方案1：在channel中直接加入静态方法
++ 动态代理来调用方法 （一个动态代理对应一个接口，一个接口对应一个NettyClient）
++ 在invoke方法中利用netty客户端远程请求服务端，获取结果。
 
 ```java
-    //封装响应结果
+//请求服务端容易
+Channel channel = bootstrap.connect().sync().channel()
+
+channel.writeAndFlush()
+    
+
+//如何获取结果(handler中的read方法)
+解决方案1：在channel中直接加入静态方法
+    
+  //封装响应结果
     private static RpcResponse response;
 
     /*
@@ -99,20 +77,21 @@ new NettyServer(7000).start();
         }
         return response;
     }
+//问题：如果一个接口通过多线程调用多个方法，那么如何确定谁的返回结果？
+//解决方案：维护一个map 在request和response中都维护一个requestID（使用同一个通道）
+优点：速度快 缺点：编码复杂（判断map为空，则关闭netty客户端）....有问题的。。。
+//解决方案：每一次调用方法nettyClient的send---串行化，增加synchronized，一个通道发完获取结果，另一个通道再发。。
+优点：编码简单。缺点：耗时（计数器，count++）....有问题的。。。
+//解决方案：直接对invoke上锁。
+优点：编码简单。 缺点：非常耗时（必须在应用代码时计数器，客户端体验差）。。
+    
 
+三者共有缺点：什么时候判断关闭netty客户端。
 ```
 
-+ 问题：此时如果服务方启动多个调用，无法确定哪个调用是哪一个的，返回返回结果出错。。
-
-### 2.解决方案2：为每一个请求加入对应的id
-
-+ 为RpcRquest加入请求id
-+ 在请求时经过handler在handler维护一个map，发送数据时就生成id和对应的RpcResponse
-+ 那么在接收数据时只需要赋值RpcResponse即可。。（也需要在RpcResponse中表示RpcRquest，这样接受数据时才可以获得map中对应的RpcResponse）
-+ 然后获取即可。
-
 ```java
-    private static Map<String, RpcResponse> responseMap = new HashMap<>();
+//维护map
+private static Map<String, RpcResponse> responseMap = new HashMap<>();
 
     /*
      * @Description 客户端接受返回结果
@@ -125,9 +104,7 @@ new NettyServer(7000).start();
         //接受对象，将Response放入map中与对应的requstId绑定
         responseMap.put(((RpcResponse)msg).getRequestId(),(RpcResponse)msg);
     }
-```
 
-```java
 //自旋获取结果
     /*
      * @Description 根据requestId获取对应的响应对象
@@ -151,8 +128,20 @@ new NettyServer(7000).start();
     }
 ```
 
+```java
+//每次调用都获取一个通道
+即每次先connnect获取通道。。
+```
 
+```java
+//第一种方法的通道id
+consumer:.....获取到consumer响应结果RpcResponse(requestId=8049583d-05ae-460c-a9f3-8067e44cb6a4, error=null, result=abcd)
+consumer:.....通道：[id: 0x1bafc469, L:/127.0.0.1:1388 - R:/127.0.0.1:7000]
+consumer:.....获取到consumer响应结果RpcResponse(requestId=f1d2d7fa-3851-4f97-a54e-88d155588d64, error=null, result=1)
+consumer:.....通道：[id: 0x1bafc469, L:/127.0.0.1:1388 - R:/127.0.0.1:7000]
 
-## 3.如何关闭客户端的通道和线程组和服务器端的通道呢？
+//第二种方法的通道id
+[id: 0x8c22a86e, L:/127.0.0.1:1076 - R:/127.0.0.1:7000]
+[id: 0xb9db136b, L:/127.0.0.1:1075 - R:/127.0.0.1:7000]
+```
 
-+ 在invoke中执行完结果直接destroy关闭线程组

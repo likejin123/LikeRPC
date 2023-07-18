@@ -88,16 +88,26 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<RpcRequest> 
             }
 
             System.out.println("客户端" + ctx.channel().remoteAddress() + ":....."
-                    + ctx.channel().remoteAddress() + "--超时事件发生--" + eventType + "服务器主动关闭通道");
+                    + ctx.channel().remoteAddress() + "--超时事件发生--" + eventType);
 
 
-            //如果发生空闲，我们关闭通道
             ctx.channel().close();
         }
     }
 
+    //异常发生了
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
+            throws Exception {
+        cause.printStackTrace();
+    }
 
 
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        System.out.println("客户端" + ctx.channel().remoteAddress() + ":....."+
+                "客户端关闭了通道，服务端关闭通道");
+    }
 
 
 }

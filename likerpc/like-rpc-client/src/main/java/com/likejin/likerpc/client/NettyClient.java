@@ -1,8 +1,10 @@
 package com.likejin.likerpc.client;
 
 import com.likejin.likerpc.RequestAndRepsonse.RpcRequest;
+import com.likejin.likerpc.RequestAndRepsonse.RpcResponse;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
@@ -20,45 +22,48 @@ public class NettyClient {
     //连接成功的通道
     private Channel channel;
     //连接开启的线程组
-    NioEventLoopGroup group;
+    private NioEventLoopGroup group;
+    //客户端
+    private Bootstrap bootstrap;
+
 
     public NettyClient(String host,int port){
-        this.host = host;
-        this.port = port;
-    }
-
-
-    /*
-     * @Description 客户端连接目标主机
-     * @param
-     * @return void
-     **/
-    public void connect() throws Exception{
-        group = new NioEventLoopGroup(1);
-        Bootstrap bootstrap = new Bootstrap();
+        group = new NioEventLoopGroup();
+        bootstrap = new Bootstrap();
 
         bootstrap.group(group)
-                    .channel(NioSocketChannel.class)
-                    .handler(new NettyClientInitializer());
+                .channel(NioSocketChannel.class)
+                .handler(new NettyClientInitializer());
+        this.host = host;
+        this.port = port;
 
-        channel = bootstrap.connect(host, port).sync().channel();
+
     }
 
+
+
     /*
-     * @Description 发送请求数据
+     * @Description 连接目标主机并且发送请求数据
      * @param rpcRequest
      * @return void
      **/
-    public void send(RpcRequest rpcRequest)  {
+    public synchronized RpcResponse send(RpcRequest rpcRequest) throws InterruptedException {
+        channel = bootstrap.connect(host, port).sync().channel();
+        System.out.println("..........................." + channel);
         System.out.println("consumer:....." + rpcRequest);
         channel.writeAndFlush(rpcRequest);
+        ChannelPipeline pipeline = channel.pipeline();
+        NettyClientHandler handler = pipeline.get(NettyClientHandler.class);
+        RpcResponse result = handler.getResult();
+        channel.close();
+        return result;
     }
+
 
     public void destroy(){
         try{
-            channel.close().sync();
-            group.shutdownGracefully().sync();
-            System.out.println("consumer:....." + "执行结束，断开连接");
+                group.shutdownGracefully().sync();
+                System.out.println("consumer:....." + "执行结束，断开连接");
         }catch (Exception e){
             e.printStackTrace();
         }
