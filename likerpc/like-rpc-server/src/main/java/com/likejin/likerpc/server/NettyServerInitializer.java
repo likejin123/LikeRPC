@@ -7,6 +7,9 @@ import com.likejin.likerpc.serializer.JSONSerializer;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.timeout.IdleStateHandler;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * @Author 李柯锦
@@ -25,6 +28,9 @@ public class NettyServerInitializer extends ChannelInitializer<SocketChannel> {
 
         //添加解码器（需要对象类型，解码为对应对象）
         pipeline.addLast(new RpcDecoder(RpcRequest.class,new JSONSerializer()));
+
+        //添加心跳机制关闭客户端
+        pipeline.addLast(new IdleStateHandler(0,0,10, TimeUnit.SECONDS));
 
         //添加自定义handler
         pipeline.addLast(new NettyServerHandler());

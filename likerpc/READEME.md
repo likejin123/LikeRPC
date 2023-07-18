@@ -153,3 +153,6 @@ new NettyServer(7000).start();
 
 
 
+## 3.如何关闭客户端的通道和线程组和服务器端的通道呢？
+
++ 在invoke中执行完结果直接destroy关闭线程组

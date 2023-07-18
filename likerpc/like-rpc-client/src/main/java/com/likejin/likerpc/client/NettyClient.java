@@ -19,6 +19,8 @@ public class NettyClient {
     private int port;
     //连接成功的通道
     private Channel channel;
+    //连接开启的线程组
+    NioEventLoopGroup group;
 
     public NettyClient(String host,int port){
         this.host = host;
@@ -32,13 +34,12 @@ public class NettyClient {
      * @return void
      **/
     public void connect() throws Exception{
-        NioEventLoopGroup group = new NioEventLoopGroup();
-
+        group = new NioEventLoopGroup(1);
         Bootstrap bootstrap = new Bootstrap();
 
         bootstrap.group(group)
-                .channel(NioSocketChannel.class)
-                .handler(new NettyClientInitializer());
+                    .channel(NioSocketChannel.class)
+                    .handler(new NettyClientInitializer());
 
         channel = bootstrap.connect(host, port).sync().channel();
     }
@@ -49,7 +50,17 @@ public class NettyClient {
      * @return void
      **/
     public void send(RpcRequest rpcRequest)  {
+        System.out.println("consumer:....." + rpcRequest);
         channel.writeAndFlush(rpcRequest);
     }
 
+    public void destroy(){
+        try{
+            channel.close().sync();
+            group.shutdownGracefully().sync();
+            System.out.println("consumer:....." + "执行结束，断开连接");
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
 }

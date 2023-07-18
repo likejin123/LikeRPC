@@ -44,6 +44,7 @@ public class NettyClientHandler extends ChannelDuplexHandler {
      **/
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        System.out.println("consumer:....." + "获取到consumer响应结果" + (RpcResponse)msg);
         //接受对象，将Response放入map中与对应的requstId绑定
         responseMap.put(((RpcResponse)msg).getRequestId(),(RpcResponse)msg);
     }
@@ -64,8 +65,10 @@ public class NettyClientHandler extends ChannelDuplexHandler {
             }catch (Exception e){
                 e.printStackTrace();
             }
-            System.out.println("尝试获取次数：" + (++count));
+            System.out.println("consumer:....." +"尝试获取次数：" + (++count));
         }
-        return responseMap.get(requestId);
+        response = responseMap.get(requestId);
+        responseMap.remove(requestId);
+        return response;
     }
 }

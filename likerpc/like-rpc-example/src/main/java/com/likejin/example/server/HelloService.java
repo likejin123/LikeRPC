@@ -8,4 +8,7 @@ package com.likejin.example.server;
 public interface HelloService {
 
     public String hello(String msg);
+
+
+    public int hello(int i);
 }

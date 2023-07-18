@@ -10,8 +10,7 @@ import com.likejin.likerpc.proxy.RpcClientDynamicProxy;
 public class RpcConsumer {
     public static void main(String[] args) throws ClassNotFoundException {
         HelloService helloService = new RpcClientDynamicProxy<>(HelloService.class, "127.0.0.1", 7000,"com.likejin.example.server").getProxy();
-        helloService.hello("你好吗");
-
+        helloService.hello(1);
     }
 
 

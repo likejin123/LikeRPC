@@ -24,30 +24,44 @@ public class NettyServer {
         NioEventLoopGroup workerGroup = new NioEventLoopGroup();
 
 
-        ServerBootstrap serverBootstrap = new ServerBootstrap();
+        try{
+            ServerBootstrap serverBootstrap = new ServerBootstrap();
 
-        serverBootstrap.group(bossGroup,workerGroup)
-                .channel(NioServerSocketChannel.class)
-                .childHandler(new NettyServerInitializer());
+            serverBootstrap.group(bossGroup,workerGroup)
+                    .channel(NioServerSocketChannel.class)
+                    .childHandler(new NettyServerInitializer());
 
 
-        bind(serverBootstrap);
+            bind(serverBootstrap);
+        }finally {
+            bossGroup.shutdownGracefully();
+            workerGroup.shutdownGracefully();
+        }
+
 
     }
 
     public void bind(ServerBootstrap serverBootstrap){
-        ChannelFuture channelFuture = serverBootstrap.bind(port);
-        channelFuture.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                if(channelFuture.isSuccess()){
-                    System.out.println("provider启动成功:" + port);
-                }else {
-                    port = port + 1;
-                    bind(serverBootstrap);
+        try{
+            ChannelFuture channelFuture = serverBootstrap.bind(port).sync();
+            channelFuture.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    if(channelFuture.isSuccess()){
+                        System.out.println("provider启动成功:....." + port);
+                    }else {
+                        port = port + 1;
+                        bind(serverBootstrap);
+                    }
                 }
-            }
-        });
+            });
+            channelFuture.channel().closeFuture().sync();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
     }
+
+
 
 }

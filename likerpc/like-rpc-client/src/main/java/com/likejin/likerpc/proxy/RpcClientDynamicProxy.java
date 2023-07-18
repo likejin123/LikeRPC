@@ -62,7 +62,12 @@ public class RpcClientDynamicProxy<T> implements InvocationHandler {
 //        RpcResponse result = NettyClientHandler.getResult();
         //获取结果方案2
         RpcResponse response = NettyClientHandler.getResponseByRequestId(id);
-        System.out.println("请求调用返回结果：" + response.getResult());
+        if(response.getResult() != null){
+            System.out.println("consumer:....." +"请求success调用返回结果：" + response.getResult());
+        }else{
+            System.out.println("consumer:....." +"请求error调用返回结果：" + response.getError());
+        }
+        nettyClient.destroy();
         return response.getResult();
     }
 
